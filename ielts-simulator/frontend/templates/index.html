@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Speaking Simulator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            max-width: 800px;
+            margin-top: 2rem;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .timer {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #dc3545;
+            text-align: center;
+            margin: 1rem 0;
+        }
+        .question-text {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            color: #2c3e50;
+        }
+        .btn-primary {
+            background-color: #3498db;
+            border: none;
+            padding: 0.8rem 2rem;
+            border-radius: 25px;
+            font-weight: 600;
+        }
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        .points-to-cover {
+            background-color: #e9ecef;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">IELTS Speaking Simulator</h1>
+        
+        <div id="start-screen" class="text-center">
+            <button id="start-test" class="btn btn-primary">Start Test</button>
+        </div>
+
+        <div id="test-screen" class="d-none">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-center mb-4">Part <span id="current-part">1</span></h5>
+                    <div id="timer" class="timer d-none"></div>
+                    <div id="question-content" class="question-text"></div>
+                    <div id="points-to-cover" class="points-to-cover d-none"></div>
+                    <div class="text-center mt-4">
+                        <button id="next-question" class="btn btn-primary">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="end-screen" class="text-center d-none">
+            <h2>Test Completed!</h2>
+            <p>Thank you for completing the IELTS Speaking Simulator.</p>
+            <button id="restart-test" class="btn btn-primary">Start New Test</button>
+        </div>
+    </div>
+
+    <script>
+        let currentPart = 1;
+        let timerInterval;
+        let preparationTime = 60; // 1 minute
+        let speakingTime = 120; // 2 minutes
+        let isPreparationPhase = true;
+
+        const startScreen = document.getElementById('start-screen');
+        const testScreen = document.getElementById('test-screen');
+        const endScreen = document.getElementById('end-screen');
+        const currentPartSpan = document.getElementById('current-part');
+        const timerDiv = document.getElementById('timer');
+        const questionContent = document.getElementById('question-content');
+        const pointsToCover = document.getElementById('points-to-cover');
+        const nextButton = document.getElementById('next-question');
+
+        async function fetchQuestion(part) {
+            const response = await fetch(`/api/part${part}`);
+            const data = await response.json();
+            return data;
+        }
+
+        function updateTimer(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            timerDiv.textContent = `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        function startTimer(seconds) {
+            let timeLeft = seconds;
+            updateTimer(timeLeft);
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimer(timeLeft);
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    if (isPreparationPhase) {
+                        isPreparationPhase = false;
+                        startTimer(speakingTime);
+                    } else {
+                        nextQuestion();
+                    }
+                }
+            }, 1000);
+        }
+
+        async function displayQuestion(part) {
+            const question = await fetchQuestion(part);
+            currentPartSpan.textContent = part;
+            
+            if (part === 2) {
+                questionContent.innerHTML = `
+                    <h4>${question.topic}</h4>
+                    <p>${question.question_text}</p>
+                `;
+                pointsToCover.innerHTML = `<strong>Points to cover:</strong><br>${question.points_to_cover}`;
+                pointsToCover.classList.remove('d-none');
+                timerDiv.classList.remove('d-none');
+                isPreparationPhase = true;
+                startTimer(preparationTime);
+            } else {
+                questionContent.textContent = question.question_text;
+                pointsToCover.classList.add('d-none');
+                timerDiv.classList.add('d-none');
+            }
+        }
+
+        async function nextQuestion() {
+            clearInterval(timerInterval);
+            currentPart++;
+            
+            if (currentPart > 3) {
+                testScreen.classList.add('d-none');
+                endScreen.classList.remove('d-none');
+            } else {
+                await displayQuestion(currentPart);
+            }
+        }
+
+        function startTest() {
+            startScreen.classList.add('d-none');
+            testScreen.classList.remove('d-none');
+            currentPart = 1;
+            displayQuestion(currentPart);
+        }
+
+        document.getElementById('start-test').addEventListener('click', startTest);
+        document.getElementById('next-question').addEventListener('click', nextQuestion);
+        document.getElementById('restart-test').addEventListener('click', () => {
+            endScreen.classList.add('d-none');
+            startScreen.classList.remove('d-none');
+        });
+    </script>
+</body>
+</html> 
